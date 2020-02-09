@@ -1,0 +1,8 @@
+1) py setup.py sdist bdist_wheel
+
+2) py -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
+3) pip install -i https://test.pypi.org/simple/ bursa-scraper-YC-Wong==0.0.58
+
+py -m pip install --index-url https://test.pypi.org/simple/ --no-deps bursa-scraper-YC Wong
+
