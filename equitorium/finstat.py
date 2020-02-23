@@ -1,18 +1,18 @@
 import os
 import re
 import json
-import swifter
 import logging
 import requests
+import warnings
 import numpy as np
 import pandas as pd
 from time import sleep
 
 import ctypes
-from ctypes.wintypes import MAX_PATH    
-from functools import wraps
 from getpass import getuser
+from functools import wraps
 from logging import warning, info
+from ctypes.wintypes import MAX_PATH    
 
 from ast import literal_eval    
 from datetime import datetime
@@ -36,6 +36,23 @@ def multithreads(n_threads=2):
         return wrapper
     return inner_function
 
+def get_gnp():            
+    print('Extracting GNP...')
+    url = 'https://www.macrotrends.net/countries/MYS/malaysia/gnp-gross-national-product'
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, features='lxml')
+    table = soup.find_all('table', attrs={'class': 'historical_data_table table table-striped table-bordered'})
+    table = table[1].find_all('tr')
+    gnp = pd.DataFrame([row.text.split('\n') for row in table[3:]])
+    gnp.columns = table[1].text.split('\n')
+    gnp.drop('', axis=1, inplace=True)
+    gnp.GNP = gnp.GNP.str.replace('\$|B', '').astype(float)
+    gnp['Per Capita'] = gnp['Per Capita'].str.replace('\$|,', '').astype(float)
+    gnp['Growth Rate'] = gnp['Growth Rate'].str.replace('\%', '').astype(float)
+    gnp.set_index('Year', drop=True, inplace=True)
+    gnp.index = gnp.index.astype('int')        
+    return gnp
+
 class Score:
     """
     Input: df, concatenated df by rows - Income Statement, Balance Sheet and Cash Flow statement
@@ -45,46 +62,26 @@ class Score:
     results = bursa.collect_statements(['ARNK.KL', 'ADVA.KL'], 'annual')
     score = Score(results['ARNK'])        
     score.get_score()
-    """            
-    
-    @classmethod
-    def get_gnp(cls):            
-        url = 'https://www.macrotrends.net/countries/MYS/malaysia/gnp-gross-national-product'
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, features='lxml')
-        table = soup.find_all('table', attrs={'class': 'historical_data_table table table-striped table-bordered'})
-        table = table[1].find_all('tr')
-        gnp = pd.DataFrame([row.text.split('\n') for row in table[3:]])
-        gnp.columns = table[1].text.split('\n')
-        gnp.drop('', axis=1, inplace=True)
-        gnp.GNP = gnp.GNP.str.replace('\$|B', '').astype(float)
-        gnp['Per Capita'] = gnp['Per Capita'].str.replace('\$|,', '').astype(float)
-        gnp['Growth Rate'] = gnp['Growth Rate'].str.replace('\%', '').astype(float)
-        gnp.set_index('Year', drop=True, inplace=True)
-        gnp.index = gnp.index.astype('int')    
-        #return gnp
-        cls.gnp = gnp
-
-    #gnp = get_gnp()
-    def __init__(self, ticker):         
-        self.ticker = ticker
-        #self.fail_scores = []
-        try:
-            xlsx = pd.ExcelFile(f'{ticker}.xlsx')
-        except Exception as e:            
-            #self.fail_scores.append(f'\nAnnual report for {ticker} file not found')                        
-            warning(f'Annual report for {ticker} file not found')
-            return None
-        else:
-            df = pd.concat((xlsx.parse(sheet, index_col=0) for sheet in xlsx.sheet_names), axis=0, sort=False)
-            if df.shape[0] == 0:
-                #self.fail_scores.append(f'\nThe financial statement of {ticker} is empty.')
-                warning(f'\nThe financial statement of {ticker} is empty.')
-                return None
+    """             
+#     def __init__(self, ticker):         
+#         self.ticker = ticker
+#         #self.fail_scores = []
+#         try:
+#             xlsx = pd.ExcelFile(f'{ticker}.xlsx')
+#         except Exception as e:            
+#             #self.fail_scores.append(f'\nAnnual report for {ticker} file not found')                        
+#             warning(f'Annual report for {ticker} file not found')
+#             return None
+#         else:
+#             df = pd.concat((xlsx.parse(sheet, index_col=0) for sheet in xlsx.sheet_names), axis=0, sort=False)
+#             if df.shape[0] == 0:
+#                 #self.fail_scores.append(f'\nThe financial statement of {ticker} is empty.')
+#                 warning(f'\nThe financial statement of {ticker} is empty.')
+#                 return None
                 
-        self.index = pd.to_datetime(df.columns, format='%d %b %Y')
-        
-        try:
+#         self.index = pd.to_datetime(df.columns, format='%d %b %Y')
+    def load_finstat(self, df):        
+        try:            
             self.revenue = df.loc['Revenue', :]
             self.net_sales = df.loc['Net Sales', :]
             self.cogs = df.loc['Cost of Revenue, Total', :]
@@ -109,17 +106,17 @@ class Score:
             self.depreciation = df.loc['Depreciation/Depletion', :]
             self.share = df.loc['Total Common Shares Outstanding', :]  
         
-        except Exception as e:            
+        except Exception as e:   
+            self.not_finance = False
+            print(f'Scoring formula not applicable to Insurance/Financial Industry: {self.name} ({self.code})')
             
-            warning(f'Ticker: {self.ticker}, not applicable to financial industry.')
-            return None
-        
         else:
             self.working_capital = self.current_asset - self.current_liability        
             self.f = None
             self.m = None
             self.z = None
             self.o = None    
+            
         finally:
             logging.info('Initialization complete')
         
@@ -262,9 +259,10 @@ class Score:
         except Exception as e:                        
             #self.fail_scores.append(f'\nTicker: {self.ticker}, {e}')            
             #warning(f'Ticker: {self.ticker}, {e}')
+            print(f'Error found at stock, {self.symbol} ({self.code}) {e}')
             return None             
         
-class BursaScraper:    
+class BursaScraper(Score):    
     """
     path (str): Absolute path, default to "Documents", it is the location to store scraped information as well    
     
@@ -296,7 +294,9 @@ class BursaScraper:
         folder = os.path.join(path, 'bursa')
         if not os.path.exists(folder): os.mkdir('bursa')        
         self.path = folder
-        os.chdir(folder)         
+        os.chdir(folder)  
+        self.symbol_code = None
+        self.gnp = None
         self.meta = None
         self.response = None
         self.text = None
@@ -308,7 +308,8 @@ class BursaScraper:
         self.fail_codes = []
         self.fail_statements = []        
         self.tickers = pd.DataFrame()
-    
+        self.finstats = dict()
+        
     def log_error(self, file_name='logger.txt'):              
         os.chdir(self.path)
         tickers = self.fail_tickers
@@ -385,7 +386,35 @@ class BursaScraper:
             
         return self.tickers
     
-    def collect_metadata(self, tickers=None, local=True, replace=True, stock_only=True):
+    def collect_codename(self):
+        response = requests.get('https://www.klsescreener.com/v2/screener/quote_results')
+        soup = BeautifulSoup(response.content, features='html.parser')
+
+        codes = soup.findAll('td', attrs={'title': 'Code'})
+        codes = [code.text for code in codes]
+        names = soup.findAll('a', attrs={'target': '_blank'})
+        names = [name.text for name in names if name.text != '>>']
+
+        return pd.Series(data=names, index=codes)
+    
+    @multithreads(4)
+    def scrape_meta(ticker):
+        for types in ['stock', 'reit']:
+            url = f'http://www.bursamarketplace.com/index.php?tpl={types}_ajax&type=gettixdetail&code={ticker}'                
+            response = requests.get(url)
+
+            if response.status_code == 200:
+                json = response.json()                        
+                if json['stockcode'] != '$': break                    
+            else:                
+                fail_msg = f'\nFail to connect to {url}.'
+                warning(fail_msg)    
+                self.fail_tickers.append(f'{datetime.now()}, {fail_msg}')                    
+
+        dict_ = {k:v for k,v in json.items() if not isinstance(v, dict)}
+        return pd.DataFrame.from_dict(dict_, orient='index').T
+            
+    def collect_metadata(self, tickers=None, local=True, replace=True, stock_only=False):
         """ 
             ticker (str): Example: ADVN, the cash tag from collect_ticker method without '$' sign
             replace (str): True, write the output file to local drive
@@ -401,42 +430,36 @@ class BursaScraper:
         if os.path.exists(self.meta_file) and local: 
             meta = pd.read_excel(self.meta_file)
             meta = meta[cols]
+            meta['alias'].str.replace('&amp;', '&')
             if stock_only: 
-                meta = meta[(meta.stockcode != '$') & (meta.bursacode.str.contains('-') == False) & (meta.bursacode.str.contains(r'\d{5}')==False)]                        
+                meta = meta[(meta.stockcode != '$') & 
+                            (meta.bursacode.str.contains('-') == False) & 
+                            (meta.bursacode.str.contains(r'\d{5}')==False)]                                        
             self.meta = meta
             return meta                    
                     
         if tickers is None: 
             company_list = self.collect_ticker(local=True, replace=False)            
             tickers = company_list.stockcode.tolist()
-                
-        tickers = pd.Series(tickers).astype('str').str.replace(r'\.KL', '').str.replace(r'^\$', '')
-                       
-        for ticker in tqdm(tickers, total=len(tickers)):                     
-            for types in ['stock', 'reit']:
-                url = f'http://www.bursamarketplace.com/index.php?tpl={types}_ajax&type=gettixdetail&code={ticker}'                
-                response = requests.get(url)
-                #return response
-                if response.status_code == 200:
-                    json = response.json()                        
-                    if json['stockcode'] != '$': break                    
-                else:                
-                    fail_msg = f'\nFail to connect to {url}.'
-                    warning(fail_msg)    
-                    self.fail_tickers.append(f'{datetime.now()}, {fail_msg}')                    
-                                            
-            dict_ = {k:v for k,v in json.items() if not isinstance(v, dict)}            
-            metadata.append(pd.DataFrame.from_dict(dict_, orient='index').T)
-            
+        
+        tickers = pd.Series(tickers).astype('str').str.replace(r'\.KL', '').str.replace(r'^\$', '').tolist()
+        metadata = BursaScraper.scrape_meta(tickers)       
         meta_df = pd.concat(metadata, axis=0, sort=False)                
         meta_df = meta_df[cols]
+        
+        # Data Cleaning
         meta_df.drop_duplicates(subset=['stockcode'], inplace=True, keep='last')
+        meta_df = meta_df.applymap(lambda x: x.replace('&amp;', '&') if isinstance(x, str) else x)
+        meta_df['stockcode'] = meta_df['stockcode'].str.replace('$', '')  
+        self.codenames = self.collect_codename()                
+        meta_df['alias'] = meta_df.set_index('bursacode')['alias'].fillna(self.codenames).values        
         
-        if replace: meta_df.to_excel(self.meta_file, index=False)
+        if replace: meta_df.to_excel(self.meta_file, index=False)              
         if stock_only: 
-            meta_df = meta_df[(meta_df.stockcode != '$') & (meta_df.bursacode.str.contains('-') == False) & (meta_df.bursacode.str.contains(r'\d{5}')==False)]
-        
-        self.meta = meta_df
+            meta_df = meta_df[(meta_df.bursacode.str.contains(r'-|\d{5}') == False) & 
+                              (meta_df.bursacode.notna())]            
+                    
+        self.meta = meta_df        
         return meta_df
     
     def collect_statement(self, code=None, frequency='quarter', verbose=True):
@@ -512,17 +535,17 @@ class BursaScraper:
         code = code.split('.')[0]                  
         return code, results
     
-    def collect_statements(self, codes=None, frequency='quarter', verbose=True, replace=True, n_jobs=None):     
+    def collect_statements(self, codes=None, frequency='quarter', verbose=True, replace=True, n_jobs=6):     
         """ Input: 
                 codes: (list of str) XXXX.KL or 'all' to run all available tickers   
                 frequency (str): quarter or annual (default: quarter)
                 verbose (bool): True, notify the progress of extraction (default: True)
             Output: (dict of pandas dataframe) key: INC, BAL, CAS
         """                
-        if str(codes).lower() == 'all':
-            #ticker = self.collect_ticker(local=True, replace=True)
-            ticker = self.collect_metadata(local=True, stock_only=True, replace=False)
-            codes = ticker.stockcode.str.replace(r'^\$', '')
+        metadata = self.collect_metadata(local=True, stock_only=True)
+        ticker_code = metadata.set_index('stockcode')['bursacode'].to_dict()
+        if str(codes).lower() == 'all' or codes is None:                        
+            codes = metadata.stockcode.str.replace(r'^\$', '')
         else:
             codes = list(set(codes))
         
@@ -551,8 +574,8 @@ class BursaScraper:
                 
         if replace:                        
             for ticker, statements in results:#results.items():
-                if sum(statements.values()).shape[0] > 0:
-                    with pd.ExcelWriter(f'{ticker}.xlsx', engine='xlsxwriter') as writer:                
+                if sum(statements.values()).shape[0] > 0:                    
+                    with pd.ExcelWriter(f'{ticker_code[ticker]}.xlsx', engine='xlsxwriter') as writer:                
                         for sheet_name, statement in statements.items():                                    
                             statement.to_excel(writer, sheet_name=sheet_name, index=True)                            
             self.fail_statements.append(f'\n{datetime.now()}, --- Process Done.')
@@ -618,7 +641,7 @@ class BursaScraper:
         else:
             codes = list(map(str,codes))        
                 
-        prices = BursaScraper.collect_price(codes)
+        prices = self.collect_price(codes)
         
         if os.path.exists(file):        
             local_prices = pd.read_parquet(file)                
@@ -740,27 +763,7 @@ class BursaScraper:
         df = df.applymap(lambda x: x.text.strip()).replace('N/A', '0', regex=True)
         df['date'] = pd.to_datetime(df['date'], format='%m/%d/%y')            
         df.loc[:, df.columns != 'date'] = df.loc[:, df.columns != 'date'].applymap(float)
-        return df
-        
-    def calculate_scores(self, annual_path=None, update=False):
-        if update: self.collect_statements(codes='all', frequency='annual', replace=True)        
-        if annual_path is None: annual_path = os.path.join(os.getcwd(),'statements/annual')
-        output_path = os.path.join(self.path, "Scores.xlsx")                
-        
-        codes = self.collect_metadata(local=True, stock_only=True)
-        codes = codes.stockcode.replace(r'\$', '', regex=True)                
-        codes.index= codes.values        
-        codes.drop_duplicates(inplace=True)        
-        logging.info("Codes Loaded.")
-        
-        os.chdir(annual_path)        
-        warnings.filterwarnings('ignore', message=r'^WARNING:root:Annual report for')
-        d = codes.swifter.apply(lambda code: Score(code).get_score()).to_dict()        
-        scores = pd.concat(d.values(), keys=d.keys())        
-        scores.to_excel(output_path)        
-        print(f'The summary scores files has been exported to {output_path}')
-        os.chdir(self.path)        
-        return scores
+        return df           
         
     def read_price(self, code, plot=True):        
         try:
@@ -845,10 +848,10 @@ class BursaScraper:
             self.collect_metadata(local=False)
         if statement_q:
             print('Collecting Financial Statements(Quarter)...')
-            self.collect_statements(codes='all', frequency='quarter')        
+            self.collect_statements(frequency='quarter')        
         if statement_a:
             print('Collecting Financial Statements(Annual)...')
-            self.collect_statements(codes='all', frequency='annual')        
+            self.collect_statements(frequency='annual')        
         if share_price:
             print('Collecting Historical Share Prices...')                            
             self.get_price()
@@ -859,6 +862,81 @@ class BursaScraper:
         print('Setup Done.')                     
         
     def update(self):
-        pass        
+        pass            
+        
+    def read_finstat(self, frequency='annual'):                        
+        frequency = str(frequency).lower()
+        frequency = {'qr': 'quarter', 'yr': 'annual' , 'year': 'annual'}.get(frequency, frequency)        
+        stat_path = os.path.join(self.path, 'statements', frequency)        
+        
+        if self.symbol_code is None:        
+            symbol_code = self.collect_metadata()[['bursacode', 'stockcode']]
+            self.symbol_code = (symbol_code.assign(stockcode=symbol_code['stockcode'].str.replace('$', ''))
+                                         .set_index('stockcode')
+                                         .iloc[:, 0]
+                                         .dropna()
+                                         .drop_duplicates()
+                                         .to_dict())                        
+            
+        self.finstats[frequency] = dict()
+        
+        for symbol, code in self.symbol_code.items():
+            try:
+                file = os.path.join(stat_path, code + '.xlsx')
+                xl = pd.ExcelFile(file)            
+                self.finstats[frequency][code] = dict()                
+                for name in xl.sheet_names:                                        
+                    self.finstats[frequency][code][name] = (xl.parse(name)
+                                                            .rename(columns={'Unnamed: 0': 'MYR (million)'})
+                                                            .set_index('MYR (million)'))
+            except Exception as e:
+                print(f'Failed to load {file}. Missing annual statement {symbol} ({code}).')                
+                                
+        return self.finstats
     
-bursa = BursaScraper()    
+    def calculate_scores(self, annual_path=None, update=False):
+        if update: self.collect_statements(codes='all', frequency='annual', replace=True)        
+        if annual_path is None: annual_path = os.path.join(self.path,'statements', 'annual')
+        output_path = os.path.join(self.path, "Scores.xlsx")                
+        self.gnp = get_gnp()
+        metadata = self.collect_metadata(local=True, stock_only=True)
+        self.code_name = metadata.set_index('bursacode')['alias'].to_dict()
+        self.symbol_code = metadata[['bursacode', 'stockcode']]
+        self.symbol_code = (self.symbol_code.assign(stockcode=self.symbol_code['stockcode'].str.replace('$', ''))
+                                         .set_index('stockcode')
+                                         .iloc[:, 0]
+                                         .dropna()
+                                         .drop_duplicates()
+                                         .to_dict())                        
+        
+        logging.info("Codes Loaded.")        
+        os.chdir(annual_path)                
+        fin_stats = self.read_finstat(frequency='annual')['annual']
+        self.scores = dict()        
+        
+        for symbol, code in tqdm(self.symbol_code.items()):            
+            self.code = code
+            self.symbol = symbol
+            self.name = self.code_name[code]
+            
+            self.not_finance = True
+            try:
+                full_stat = pd.concat((fin_stat for _, fin_stat in fin_stats[code].items()), 0, sort=False)                
+                self.index = pd.to_datetime(full_stat.columns, format='%d %b %Y')                                   
+                self.load_finstat(full_stat)            
+                if self.not_finance: self.scores[code] = self.get_score()
+                
+            except KeyError:                
+                pass
+            
+            except Exception as e:
+                print(f'Error occurred at {symbol} ({code}). {e}')
+                     
+        os.chdir(self.path)        
+        return self.scores
+   
+if __name__ == '__main__':
+    bursa = BursaScraper()    
+    codename = bursa.collect_codename()
+    finstat = bursa.read_finstat()
+    scores = bursa.calculate_scores()

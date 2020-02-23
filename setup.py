@@ -5,22 +5,24 @@
 
 
 import setuptools
+from distutils.core import setup
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-
-setuptools.setup(
+    
+    setup(
     name="equitorium", # Replace with your own username
     version="0.0.2",
     author="YC WONG",
     author_email="ycfkjc@hotmail.com",
-    description="To identify the investment opportunit in Bursa Market (KLSE)",
+    description="To identify the investment opportunity in Bursa Market (KLSE)",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/WongYC19/EquityAnalyzer",
+    url="https://github.com/WongYC19/Equitorium",
+    keywords=['bursa', 'KLSE', 'Technical Analysis', 'finance', 'investment', 'screener'],
     packages=setuptools.find_packages(),
-    install_requires=['numpy', 'pandas', 'tqdm', 'scipy', 'pyarrow', 'plotly', 'scikit-learn', 'dashtable'],
     #packages=['numpy', 'pandas', 'bs4', 'tqdm', 'scipy', 'scikit-learn'],
+    install_requires=['numpy', 'pandas', 'tqdm', 'scipy', 'pyarrow', 'plotly', 'scikit-learn', 'dashtable', 'dash'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
