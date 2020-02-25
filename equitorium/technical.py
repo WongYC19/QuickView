@@ -233,54 +233,52 @@ class Caster(Indicators):
             if max_points is not None and max_points > price.shape[0]:#if max_points is not None: start = max(end-max_points, start)                     
                 price = price.iloc[-max_points, :]
             return price        
-    
-    def show_chart(self, price):                
-        assert isinstance(price, pd.DataFrame), f"Only Pandas DataFrame is accepted, received {type(price)} instead."
-        assert price.shape[0] > 0, "There is no observation in the dataframe."        
-        if 'date' not in price.columns: price.reset_index(inplace=True)                                        
-        vol_colors = np.where(price.close.diff(1) > 0, INCREASING_COLOR, DECREASING_COLOR)                        
         
-        fig = make_subplots(shared_xaxes=True, vertical_spacing= 0.02,#specs=[[{"secondary_y": True}]], 
-                            rows=2, cols=1, )          
-        
+    def show_chart(self, price):
+        if 'date' not in price.columns: price = price.reset_index(drop=False)                                        
+        vol_colors = np.where(price.close.diff(1) > 0, INCREASING_COLOR, DECREASING_COLOR)                     
+        fig = go.Figure(make_subplots(shared_xaxes=True, vertical_spacing= 0.02,
+                                  specs=[
+                                      [{'type': 'candlestick'}], 
+                                      [{'type': 'bar'}]
+                                   ], rows=2, cols=1))            
+
         fig.add_trace(go.Candlestick(x= price.date, name= 'Price (MYR)', 
-                       open = price.open, 
-                       high = price.high, 
-                       low = price.low, 
-                       close = price.close), row=1, col=1)
-        
+                   open = price.open, 
+                   high = price.high, 
+                   low = price.low, 
+                   close = price.close, yaxis='y'), row=1, col=1)
+
         fig.add_trace(go.Bar(x= price.date, 
-                             y= price.volume, 
-                             name='Volume', 
-                             orientation = "v",
-                             marker_color=vol_colors), row=2, col=1)
-                           
-        rangeselector= dict(visible = True, x = 0, y = 0.96,  font = dict(size=13),
-                           bgcolor = 'rgba(150, 200, 250, 0.4)',
-                           buttons=[dict(count=1, label='1m', step='month', stepmode='backward'),
-                                    dict(count=3, label='3m', step='month', stepmode='backward'),
-                                    dict(count=6, label='6m', step='month', stepmode='backward'),
-                                    dict(count=1, label='1y', step='year', stepmode='backward'),
-                                    dict(count=5, label='5y', step='year', stepmode='backward'),
-                                    dict(label='All', step='all')])
-        
-        fig.update_layout(title= dict(text=self.title, x=0.5, y=0.97, xanchor='center', yanchor='top'),
-                          plot_bgcolor= 'rgba(0, 0, 0, 0)',                                 
-                          showlegend= False, xaxis_rangeslider_visible= True,                           
-                          xaxis1= dict(type='category', rangeselector=rangeselector, visible=False),
-                                      #rangeslider= {'bgcolor': 'aliceblue','autorange':True}),
-                          xaxis2= dict(visible=True, rangeselector=rangeselector, rangeslider= {'bgcolor': 'aliceblue','autorange':True}),                                                                
-                          yaxis= dict(domain= [0.2, 0.96], showticklabels=True, autorange = True, fixedrange= False, side='right'),
-                          yaxis2= dict(domain = [0, 0.2], autorange = True, fixedrange=True, side='right'),                          
-                          legend= dict(orientation='h', y=0.9, x=0.9, yanchor='bottom'),
-                          margin= dict(t=40, b=0, r=0, l=40)                                          
-                         ) 
-        
+                         y= price.volume, 
+                         name='Volume', 
+                         orientation = "v",
+                         marker_color=vol_colors, yaxis='y2'), row=2, col=1)
+
+        rangeselector= dict(x = 0, y = 0.96,  font = dict(size=13),
+                       bgcolor = 'rgba(150, 200, 250, 0.4)',
+                       buttons=[dict(count=1, label='1m', step='month', stepmode='backward'),
+                                dict(count=3, label='3m', step='month', stepmode='backward'),
+                                dict(count=6, label='6m', step='month', stepmode='backward'),
+                                dict(count=1, label='1y', step='year', stepmode='backward'),
+                                dict(count=5, label='5y', step='year', stepmode='backward'),
+                                dict(label='All', step='all')])
+
+        fig.update_layout(title= dict(text=caster.title, x=0.5, y=0.97, 
+                                  xanchor='center', yanchor='top'),
+                      plot_bgcolor= 'rgba(0, 0, 0, 0)', 
+                      margin={'t': 0.1, 'b': 0, 'l': 0, 'r': 0},
+                      showlegend= False)    
+    
+        fig.update_layout(xaxis=dict(autorange=True, type="date", 
+                                 rangeslider=dict(autorange=True, visible=True), 
+                                 rangeselector=rangeselector),                                                       
+                      yaxis1= dict(domain=[0.25, .97]),
+                      yaxis2= dict(domain=[0, 0.25]))
+                      
         fig.update_xaxes(showgrid=True, gridwidth=2, gridcolor='rgb(234,234,234)', row=1)
         fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='rgb(234,234,234)', row=1)                
-        #fig.update_yaxes(range=[0, np.round(price.volume.max(),0)], row=1)
-        
-        return fig
+        return fig  
                 
     def plot_prediction(self, y, yhat):
         plt.style.use('fivethirtyeight')
