@@ -63,23 +63,6 @@ class Score:
     score = Score(results['ARNK'])        
     score.get_score()
     """             
-#     def __init__(self, ticker):         
-#         self.ticker = ticker
-#         #self.fail_scores = []
-#         try:
-#             xlsx = pd.ExcelFile(f'{ticker}.xlsx')
-#         except Exception as e:            
-#             #self.fail_scores.append(f'\nAnnual report for {ticker} file not found')                        
-#             warning(f'Annual report for {ticker} file not found')
-#             return None
-#         else:
-#             df = pd.concat((xlsx.parse(sheet, index_col=0) for sheet in xlsx.sheet_names), axis=0, sort=False)
-#             if df.shape[0] == 0:
-#                 #self.fail_scores.append(f'\nThe financial statement of {ticker} is empty.')
-#                 warning(f'\nThe financial statement of {ticker} is empty.')
-#                 return None
-                
-#         self.index = pd.to_datetime(df.columns, format='%d %b %Y')
     def load_finstat(self, df):        
         try:            
             self.revenue = df.loc['Revenue', :]
@@ -574,10 +557,20 @@ class BursaScraper(Score):
                 
         if replace:                        
             for ticker, statements in results:#results.items():
-                if sum(statements.values()).shape[0] > 0:                    
-                    with pd.ExcelWriter(f'{ticker_code[ticker]}.xlsx', engine='xlsxwriter') as writer:                
+                if sum(statements.values()).shape[0] > 0:         
+                    stat_file = f'{ticker_code[ticker]}.xlsx'
+                    if os.path.exists(stat_file):
+                        stats = pd.ExcelFile(stat_file)
+                        for stype in stats.sheet_names:
+                            current = pd.read_excel(stats, sheet_name=stype)   
+                            current = current.rename(columns={'Unnamed: 0': 'MYR (million)'}).set_index('MYR (million)')                            
+                            combined = pd.concat([statements[stype], current], 1)
+                            statements[stype] = combined.loc[:, ~combined.columns.duplicated()]                            
+                            
+                    with pd.ExcelWriter(stat_file, engine='xlsxwriter') as writer:                
                         for sheet_name, statement in statements.items():                                    
                             statement.to_excel(writer, sheet_name=sheet_name, index=True)                            
+                            
             self.fail_statements.append(f'\n{datetime.now()}, --- Process Done.')
         self.log_error()
         return results
@@ -860,38 +853,45 @@ class BursaScraper(Score):
             self.collect_commodities()
             
         print('Setup Done.')                     
-        
-    def update(self):
-        pass            
-        
-    def read_finstat(self, frequency='annual'):                        
-        frequency = str(frequency).lower()
-        frequency = {'qr': 'quarter', 'yr': 'annual' , 'year': 'annual'}.get(frequency, frequency)        
-        stat_path = os.path.join(self.path, 'statements', frequency)        
+                           
+    def read_finstat(self, frequency=['annual']):                                 
         
         if self.symbol_code is None:        
             symbol_code = self.collect_metadata()[['bursacode', 'stockcode']]
+            symbol_code = symbol_code[symbol_code.bursacode.str.len() <= 4]
             self.symbol_code = (symbol_code.assign(stockcode=symbol_code['stockcode'].str.replace('$', ''))
                                          .set_index('stockcode')
                                          .iloc[:, 0]
                                          .dropna()
                                          .drop_duplicates()
-                                         .to_dict())                        
-            
-        self.finstats[frequency] = dict()
+                                         .to_dict())                                            
         
-        for symbol, code in self.symbol_code.items():
-            try:
-                file = os.path.join(stat_path, code + '.xlsx')
-                xl = pd.ExcelFile(file)            
-                self.finstats[frequency][code] = dict()                
-                for name in xl.sheet_names:                                        
-                    self.finstats[frequency][code][name] = (xl.parse(name)
+        if isinstance(frequency, str): frequency = [frequency]
+        for i, f in tqdm(enumerate(frequency), total=len(frequency)):
+            f = str(f).lower()
+            f = {'qr': 'quarter', 'yr': 'annual' , 'year': 'annual'}.get(f, f)                                  
+            
+            if f not in self.finstats.keys():
+                self.finstats.update({f:dict()})
+            
+            stat_path = os.path.join(self.path, 'statements', f)        
+            for symbol, code in self.symbol_code.items():
+                try:
+                    file = os.path.join(stat_path, code + '.xlsx')
+                    xl = pd.ExcelFile(file)            
+                                        
+                except Exception as e:
+                    print(f'Failed to load {file}. Missing {f} statement {symbol} ({code}).')    
+                    
+                else:
+                    self.finstats[f][code] = dict()                
+                    for name in xl.sheet_names:                   
+                        try:
+                            self.finstats[f][code][name] = (xl.parse(name)
                                                             .rename(columns={'Unnamed: 0': 'MYR (million)'})
                                                             .set_index('MYR (million)'))
-            except Exception as e:
-                print(f'Failed to load {file}. Missing annual statement {symbol} ({code}).')                
-                                
+                        except:
+                            print(code, xl.parse(name))
         return self.finstats
     
     def calculate_scores(self, annual_path=None, update=False):
@@ -937,6 +937,9 @@ class BursaScraper(Score):
    
 if __name__ == '__main__':
     bursa = BursaScraper()    
-    codename = bursa.collect_codename()
-    finstat = bursa.read_finstat()
-    scores = bursa.calculate_scores()
+    bursa.calculate_scores()
+    # bursa.collect_statements(frequency='quarter')
+    # bursa.collect_statements(frequency='annual')
+    #codename = bursa.collect_codename()
+    #finstat = bursa.read_finstat(['quarter'])
+    #scores = bursa.calculate_scores()
