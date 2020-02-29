@@ -264,7 +264,7 @@ class Caster(Indicators):
                                 dict(count=5, label='5y', step='year', stepmode='backward'),
                                 dict(label='All', step='all')])
 
-        fig.update_layout(title= dict(text=caster.title, x=0.5, y=0.97, 
+        fig.update_layout(title= dict(text=self.title, x=0.5, y=0.97, 
                                   xanchor='center', yanchor='top'),
                       plot_bgcolor= 'rgba(0, 0, 0, 0)', 
                       margin={'t': 0.1, 'b': 0, 'l': 0, 'r': 0},
@@ -338,4 +338,3 @@ class Caster(Indicators):
         if plot: self.plot_prediction(y, valid_pred)
         predictions = lr.predict(X)        
         return predictions
-    
