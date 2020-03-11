@@ -1,8 +1,8 @@
 Metadata-Version: 2.1
 Name: equitorium
-Version: 0.0.2
-Summary: To identify the investment opportunit in Bursa Market (KLSE)
-Home-page: https://github.com/WongYC19/EquityAnalyzer
+Version: 0.0.3
+Summary: To find the investment opportunity in Bursa Market (KLSE)
+Home-page: https://github.com/WongYC19/Equitorium
 Author: YC WONG
 Author-email: ycfkjc@hotmail.com
 License: UNKNOWN
@@ -76,6 +76,7 @@ Description: # EquityAnalyzer
             </ol>
         </ol>  
         
+Keywords: bursa,KLSE,Technical Analysis,finance,investment,screener
 Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
