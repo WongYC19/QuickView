@@ -1,7 +1,0 @@
-pandas
-tqdm
-scipy
-plotly
-scikit-learn
-dash
-dash-bootstrap-components

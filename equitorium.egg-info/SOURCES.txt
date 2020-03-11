@@ -8,5 +8,4 @@ equitorium/technical.py
 equitorium.egg-info/PKG-INFO
 equitorium.egg-info/SOURCES.txt
 equitorium.egg-info/dependency_links.txt
-equitorium.egg-info/requires.txt
 equitorium.egg-info/top_level.txt

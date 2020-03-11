@@ -22,7 +22,7 @@ with open("README.md", "r") as fh:
     keywords=['bursa', 'KLSE', 'Technical Analysis', 'finance', 'investment', 'screener'],
     packages=setuptools.find_packages(),
     #packages=['numpy', 'pandas', 'bs4', 'tqdm', 'scipy', 'scikit-learn'],
-    install_requires=['pandas', 'tqdm', 'scipy', 'plotly', 'scikit-learn', 'dash', 'dash-bootstrap-components'], #'pyarrow', 
+    #install_requires=['pandas', 'tqdm', 'scipy', 'plotly', 'scikit-learn', 'dash', 'dash-bootstrap-components'], #'pyarrow', 
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
