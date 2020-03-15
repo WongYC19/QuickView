@@ -80,4 +80,5 @@ def multiprocess(n_cores=None):
 def methods(obj):
     return [func for func in dir(obj) if callable(getattr(obj, func)) and not func.startswith("__")]
 
-methods(list)
+
+
