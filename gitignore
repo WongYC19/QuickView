@@ -1,4 +1,6 @@
 dist
 build
+setup.cfg
+setup.py
 equitorium.egg-info
 Upload package command.txt
