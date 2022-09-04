@@ -1,20 +1,8 @@
 import streamlit as st
+from streamlit_utils.config import config_page, get_state, login, logout
 
-state = st.session_state
-state.setdefault("is_authenticated", False)
-state.setdefault("auth_name", "")
-
-def login():
-    username = state.auth_name
-    print("username:", username)
-    is_valid_username = username in ['ycwong'] 
-    state.is_authenticated = is_valid_username       
-    state.auth_name = username 
-    return state.is_authenticated
-
-def logout():
-    state.is_authenticated = False    
-    state.auth_name = ""
+config_page()
+state = get_state()
 
 if not state.is_authenticated:            
     with st.form(key="login_form"):        

@@ -8,6 +8,7 @@ Upload package command.txt
 *.png
 *.cfg
 *.d
+*.xlsx
 dist/
 build/
 webapp/
@@ -25,12 +26,3 @@ Lib/
 Include/
 dist
 build
-
-
-
-
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 5b57e653a901ec57c1a098cd4e5ffd5a546f0cc4
