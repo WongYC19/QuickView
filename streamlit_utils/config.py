@@ -4,9 +4,10 @@ import pathlib
 import PIL
 import streamlit as st
 
-current_folder = pathlib.Path(__file__).parent.resolve()
-icon_file = os.path.join(current_folder, "quickview_logo.png")
+# current_folder = pathlib.Path(__file__).parent.resolve()
+icon_file = os.path.join("streamlit_utils", "quickview_logo.png")
 page_icon = PIL.Image.open(icon_file)
+# print(f"Current folder: {current_folder}")
 state = st.session_state
 
 def config_page():
