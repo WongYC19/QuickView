@@ -1,3 +1,4 @@
+from turtle import onclick
 import streamlit as st
 
 from streamlit_utils.config import config_page
@@ -50,17 +51,17 @@ def page():
         if row['Is Shariah']:                                
             with shariah_col:                
                 render_icon("shariah", width=50, height=50, caption="Shariah Compliance")
-                                                                                                        
+                    
         st.date_input(
-            label="Pick a range (default to last 60 days)", 
-            value=(initial_start_date, initial_end_date), 
-            key="date_range",
-            on_change=set_daterange,
-            args=(initial_end_date,),
+                label="Pick a range (default to last 60 days)", 
+                value=(initial_start_date, initial_end_date), 
+                key="date_range",
+                on_change=set_daterange,
+                args=(initial_end_date,),
         )
-                                
         start_date, end_date = st.session_state['date_range']
         share_price = price.loc[start_date:end_date]
+                    
         render_candlestick(share_price, name)
                             
 if __name__ == '__main__':
