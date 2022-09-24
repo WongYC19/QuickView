@@ -1,4 +1,4 @@
-streamlit==1.11.1
+streamlit==1.13.0
 streamlit-aggrid==0.3.2
 plotly==5.10.0
 plotly-express==0.4.1
