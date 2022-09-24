@@ -17,7 +17,7 @@ def read_pickle(file_path: str) -> dict:
     return {}
 
 @st.experimental_memo
-def get_scores(pkl_file: str = "scores.pkl"):
+def get_scores(pkl_file: str = "theia/storage/scores.pkl"):
     scores = pd.read_pickle(pkl_file)
     scores = scores.rename_axis('year').reset_index()
     scores.columns = scores.columns.str.replace("_", " ").str.title()
@@ -26,7 +26,7 @@ def get_scores(pkl_file: str = "scores.pkl"):
     return scores
 
 @st.experimental_memo
-def get_metrics(pkl_file: str = "metrics.pkl"):
+def get_metrics(pkl_file: str = "theia/storage/metrics.pkl"):
     metrics = pd.read_pickle(pkl_file)
     metrics = metrics.sort_index(ascending=False).round(2)
     metrics.index = metrics.index.date
@@ -35,7 +35,7 @@ def get_metrics(pkl_file: str = "metrics.pkl"):
 
 @st.experimental_memo
 def get_metadata():    
-    metadata = pd.read_csv("metadata.csv") 
+    metadata = pd.read_csv("theia/storage/metadata.csv") 
     field_mappers = {
         'bursacode': 'Code', 
         'alias': 'Alias', 
@@ -63,7 +63,7 @@ def get_metadata():
     return metadata
 
 @st.experimental_memo
-def get_share_prices_with_signals(signal_pickle_file="MA_3_Signals.pkl"):    
+def get_share_prices_with_signals(signal_pickle_file="theia/storage/MA_3_Signals.pkl"):    
     print(f"Reading share price file {signal_pickle_file}...")
     prices = pd.read_pickle(signal_pickle_file)
     prices.columns = prices.columns.astype(str).str.title()
