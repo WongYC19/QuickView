@@ -46,6 +46,11 @@ def render_candlestick(share_price, name=None, use_container_width=True):
         'type': 'candlestick',
         "showlegend": False,
         'name': name,
+        # 'marker': go.Marker(
+        #     size=20,
+        #     symbol=share_price["Close"] > share_price["Open"],
+        #     color="green",
+        # ),        
         # "increasing_line_color": 'white', 
         # "decreasing_line_color": 'black',
     }
@@ -71,7 +76,10 @@ def render_candlestick(share_price, name=None, use_container_width=True):
         xaxis_showgrid = False,
         yaxis_showgrid = False,
         paper_bgcolor = plot_color,
-        plot_bgcolor= plot_color,
+        plot_bgcolor = plot_color,
+        # annotations =[ dict(
+        #     x='2022-09-15', y=-0.5, xref='x', yref='y', showarrow=True, xanchor='left', text='Buy', arrowhead=8, ax= 0, ay= -40),                      
+        # ],
     )
     
     config = {
@@ -98,7 +106,7 @@ def render_dataframe(df, key, selection_mode=None):
         builder.configure_selection(
             selection_mode=selection_mode, 
             use_checkbox=True, 
-            pre_selected_rows=[], 
+            pre_selected_rows=[],
             rowMultiSelectWithClick=False, 
             suppressRowDeselection=False, 
             groupSelectsChildren=True, 
@@ -108,14 +116,14 @@ def render_dataframe(df, key, selection_mode=None):
     gridOptions = builder.build()
     
     aggrid = AgGrid(
-        df, 
+        df,
         key=key, 
         gridOptions=gridOptions, 
         height = 400, 
         width = "100%", 
         enable_enterprise_modules = True,
         reload_data=True,
-        update_mode= GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.MODEL_CHANGED | GridUpdateMode.VALUE_CHANGED,
+        update_mode= GridUpdateMode.SELECTION_CHANGED, # | GridUpdateMode.MODEL_CHANGED | GridUpdateMode.VALUE_CHANGED,
         conversion_errors = "coerce"
     )
     

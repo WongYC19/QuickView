@@ -21,8 +21,7 @@ Include/
 Scripts/
 images/
 Documents/
-theia/
-Lib/
-Include/
-dist
-build
+*.bat
+extract*.py
+calculate*.py
+

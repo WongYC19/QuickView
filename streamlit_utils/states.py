@@ -36,7 +36,8 @@ def set_signal_statistics(metadata, signals_df, offset_periods):
     signal_stats = signals_df.groupby('Code').agg({'Buy': sum, 'Sell': sum})
     signal_stats_with_meta = metadata.merge(signal_stats, how='left', on='Code')
     signal_stats_with_meta = signal_stats_with_meta.sort_values(by=['Buy', 'Sell'], ascending=[False, True])
-    cols = ["Code", "Alias", "Name", "Buy", "Sell", "Sector", "Industry", "Is Shariah"]
+    score_cols = signal_stats_with_meta.columns[signal_stats_with_meta.columns.str.endswith("Score")].tolist()
+    cols = ["Code", "Alias", "Name", "Buy", "Sell", "Sector", "Industry", "Is Shariah"] + score_cols
     signal_stats_with_meta = signal_stats_with_meta[cols]
     return signal_stats_with_meta
 

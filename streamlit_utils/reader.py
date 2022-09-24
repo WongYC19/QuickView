@@ -17,6 +17,23 @@ def read_pickle(file_path: str) -> dict:
     return {}
 
 @st.experimental_memo
+def get_scores(pkl_file: str = "scores.pkl"):
+    scores = pd.read_pickle(pkl_file)
+    scores = scores.rename_axis('year').reset_index()
+    scores.columns = scores.columns.str.replace("_", " ").str.title()
+    scores['Code'] = scores['Code'].astype(str)
+    scores = scores.round(2)
+    return scores
+
+@st.experimental_memo
+def get_metrics(pkl_file: str = "metrics.pkl"):
+    metrics = pd.read_pickle(pkl_file)
+    metrics = metrics.sort_index(ascending=False).round(2)
+    metrics.index = metrics.index.date
+    metrics.columns = metrics.columns.str.replace("_", " ").str.title()
+    return metrics
+
+@st.experimental_memo
 def get_metadata():    
     metadata = pd.read_csv("metadata.csv") 
     field_mappers = {
@@ -26,6 +43,9 @@ def get_metadata():
         'shariah': 'Is Shariah', 
         'economicsectorcode': 'Sector', 
         'industrygroupcode': 'Industry', 
+        'description': 'Description',
+        'hyperlink': 'Hyperlink',
+        'address': 'Address',
     }
     
     metadata.economicsectorcode.fillna("Other", inplace=True)
@@ -39,6 +59,7 @@ def get_metadata():
     metadata = metadata[field_mappers.values()]
     metadata = metadata[is_four_digit | is_klcc]
     metadata.reset_index(drop=True, inplace=True)
+    metadata['Code'] = metadata['Code'].astype(str)
     return metadata
 
 @st.experimental_memo
