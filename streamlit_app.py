@@ -1,6 +1,13 @@
 import streamlit as st
 from streamlit_utils.config import config_page, get_state, login, logout
+import os
 
+for (root,dirs,files) in os.walk(topdown=True):
+  print(root)
+  print(dirs)
+  print(files)
+  print('--------------------------------')
+      
 # config_page()
 # state = get_state()
 
